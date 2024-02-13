@@ -1,0 +1,1005 @@
+project1.py
+from project1_classes.lexer_fsm import LexerFSM
+
+# Return your program output here for grading (can treat this function as your "main")
+def project1(input: str) -> str:
+    lexer: LexerFSM = LexerFSM()
+    return lexer.run(input)
+
+def read_file_contents(filepath):
+    with open(filepath, "r") as f:
+        return f.read() 
+
+# Use this to run and debug code within VS Code
+if __name__ == "__main__":
+    input_contents = read_file_contents("./project1-passoff/20/input21.txt") # Put path to input file here
+    print(project1(input_contents))
+
+lexer_fsm.py
+from .fsa_classes.fsa import FSA
+from .fsa_classes.colon_dash_fsa import ColonDashFSA
+from .fsa_classes.colon_fsa import ColonFSA
+from .fsa_classes.add_fsa import AddFSA
+from .fsa_classes.block_comment_fsa import BlockCommentFSA
+from .fsa_classes.comma_fsa import CommaFSA
+from .fsa_classes.facts_fsa import FactsFSA
+from .fsa_classes.id_fsa import IDFSA
+from .fsa_classes.left_paren_FSA import LeftParenFSA
+from .fsa_classes.line_comment_fsa import LineCommentFSA
+from .fsa_classes.multiply_fsa import MultiplyFSA
+from .fsa_classes.period_fsa import PeriodFSA
+from .fsa_classes.q_mark_fsa import QMarkFSA
+from .fsa_classes.queries_fsa import QueriesFSA
+from .fsa_classes.right_paren_fsa import RightParenFSA
+from .fsa_classes.rules_fsa import RulesFSA
+from .fsa_classes.schemes_fsa import SchemesFSA
+from .fsa_classes.string_fsa import StringFSA
+from .token_1 import Token
+from .manager_fsm import ManagerFSM
+
+class LexerFSM:
+    def __init__(self):
+        self.tokens: list[Token] = []
+        self.fsa_list:list[FSA] = []
+        my_colon_fsa: ColonFSA = ColonFSA(name = "COLON FSA")
+        self.fsa_list.append(my_colon_fsa)
+        my_colon_dash_fsa: ColonDashFSA = ColonDashFSA(name = "COLON-DASH FSA")
+        self.fsa_list.append(my_colon_dash_fsa)
+        my_left_paren_fsa: LeftParenFSA = LeftParenFSA(name = "LPAREN FSA")
+        self.fsa_list.append(my_left_paren_fsa)
+        my_right_paren_fsa: RightParenFSA = RightParenFSA(name = "RPAREN FSA")
+        self.fsa_list.append(my_right_paren_fsa)
+        my_comma_fsa: CommaFSA = CommaFSA(name = "COMMA FSA")
+        self.fsa_list.append(my_comma_fsa)
+        my_period_fsa: PeriodFSA = PeriodFSA(name = "PERIOD FSA")
+        self.fsa_list.append(my_period_fsa)
+        my_qmark_fsa: QMarkFSA = QMarkFSA(name = "QMARK FSA")
+        self.fsa_list.append(my_qmark_fsa)
+        my_multiply_fsa: MultiplyFSA = MultiplyFSA(name = "MULTIPLY FSA")
+        self.fsa_list.append(my_multiply_fsa)
+        my_add_fsa: AddFSA = AddFSA(name = "ADD FSA")
+        self.fsa_list.append(my_add_fsa)
+        my_schemes_fsa: SchemesFSA = SchemesFSA(name = "SCHEMES FSA")
+        self.fsa_list.append(my_schemes_fsa)
+        my_facts_fsa: FactsFSA = FactsFSA(name = "FACTS FSA")
+        self.fsa_list.append(my_facts_fsa)
+        my_rules_fsa: RulesFSA = RulesFSA(name = "RULES FSA")
+        self.fsa_list.append(my_rules_fsa)
+        my_queries_fsa: QueriesFSA = QueriesFSA(name = "QUERIES FSA")
+        self.fsa_list.append(my_queries_fsa)
+        my_string_fsa: StringFSA = StringFSA(name = "STRING FSA")
+        self.fsa_list.append(my_string_fsa)
+        my_id_fsa: IDFSA = IDFSA(name = "ID FSA")
+        self.fsa_list.append(my_id_fsa)
+        my_block_comment_fsa: BlockCommentFSA = BlockCommentFSA(name = "BLOCK COMMENT FSA")
+        self.fsa_list.append(my_block_comment_fsa)
+        my_line_comment_fsa: LineCommentFSA = LineCommentFSA(name = "LINE COMMENT FSA")
+        self.fsa_list.append(my_line_comment_fsa)
+
+    
+    def run(self, input: str) -> str:
+        self.lineNumber: int = 1
+        self.my_manager_fsm: ManagerFSM = ManagerFSM()
+        while input != "":
+            print("INPUT: " + input+"\n")
+            if input[0] == "\n":
+                self.lineNumber += 1
+                input = input[1:]
+                print("NEWLINE")
+            elif (input[0].isspace() == True):
+                input = input[1:]
+                print("whitespace removed")
+            else:
+                status_dict: dict = dict()
+                for fsa in self.fsa_list:
+                    temp_input = input  # create a copy of the input string
+                    fsa.reset()
+                    accept_status: bool = fsa.run(temp_input)
+                    status_dict[fsa.get_fsa_name()] = accept_status
+                    print (status_dict)
+                    if accept_status == True:
+                        newToken = Token(token_type= fsa.get_fsa_name(), value= input[:fsa.get_chars_read()], line_num=0)
+                        #GET CONSUMED DOESNT EXIST
+                        self.tokens.append(newToken)
+                        input = input[fsa.get_chars_read():]
+                        print("TOKEN MADE: VALUE : " + newToken.getValue() + " END VALUE")
+                        print("INPUT: " + input+"\n")
+                    fsa.reset()  
+                    
+        
+        if input == "":
+            #print("TOKENS NUM" + str(len(self.tokens)))
+            newToken = Token(token_type= "EOF", value = "\"", line_num= self.lineNumber)
+            self.tokens.append(newToken)
+        returnString:str = ""
+        for token in self.tokens:
+            returnString += (token.to_string()+"\n")
+        returnString += ("Total Tokens = " + str(len(self.tokens)))
+        return returnString
+
+    def lex(self, input_string: str) -> Token:
+        ...
+
+    def __manager_fsm__(self) -> Token:
+        ...
+
+    def reset(self) -> None:
+        ...
+
+manager_fsm.py:
+
+class ManagerFSM:
+    def __init__(self) -> None:
+        self.output:str = "EOF"
+    def run(self, status_dict: dict[str, bool]):
+    
+        if status_dict["COLON FSA"] == True and status_dict["COLON-DASH FSA"] == False:
+            self.output = "COLON"
+        elif status_dict["COLON-DASH FSA"] == True:
+            self.output = "COLON-DASH"
+        elif status_dict["LPAREN FSA"] == True:
+            self.output = "LPAREN"
+        elif status_dict["MULTIPLY FSA"] == True:
+            self.output = "MULTIPLY"
+        elif status_dict["RPAREN FSA"] == True:
+            self.output = "RPAREN"
+        elif status_dict["COMMA FSA"] == True:
+            self.output = "COMMA"
+        elif status_dict["PERIOD FSA"] == True:
+            self.output = "PERIOD"
+        elif status_dict["ADD FSA"] == True:
+            self.output = "ADD"
+        elif status_dict["QMARK FSA"] == True:
+            self.output = "QMARK"
+        elif status_dict["SCHEMES FSA"] == True:
+            self.output = "SCHEMES"
+        elif status_dict["FACTS FSA"] == True:
+            self.output = "FACTS"
+        elif status_dict["RULES FSA"] == True:
+            self.output = "RULES"
+        elif status_dict["QUERIES FSA"] == True:
+            self.output = "QUERIES"
+        elif status_dict["STRING FSA"] == True:
+            self.output = "STRING"
+        elif status_dict["ID FSA"] == True:
+            self.output = "ID"
+        elif status_dict["BLOCK COMMENT FSA"] == True:
+            self.output = "BLOCK COMMENT"
+        elif status_dict["LINE COMMENT FSA"] == True:
+            self.output = "LINE COMMENT"
+        else:
+            self.output = "UNDEFINED"
+        return self.output
+
+fsa.py:
+
+from typing import Callable as function
+
+"""class FSA:
+    def __init__(self, name: str):
+        self.fsa_name: str = name
+        self.start_state: function = self.S0
+        self.accept_states: set[function] = set()
+        self.input_string: str = ""
+        self.num_chars_read: int = 0
+    
+    def S0(self) -> NotImplemented:
+        raise NotImplementedError()
+    
+    def run(self, input_string: str) -> bool:
+        self.input_string = input_string
+        current_state: function = self.start_state
+        while self.num_chars_read < len(self.input_string):
+            current_state = current_state()
+        if current_state in self.accept_states:
+            return True # Output this if the FSA ended in an accept state
+        else: 
+            return False
+
+        
+
+    def reset(self) -> None:
+        self.num_chars_read = 0
+        self.input_string = ""
+
+    def get_fsa_name(self) -> str:
+        return self.fsa_name
+
+    def set_fsa_name(self, FSA_name) -> None:
+        self.fsa_name = FSA_name
+
+    def get_chars_read(self) -> int:  
+        return self.num_chars_read"""
+class FSA:
+    """ FSA Base or Super class"""
+    def __init__(self, name: str):
+        self.fsa_name: str = name        # name of your state machine
+        self.start_state: function = self.s0  # start state always named s0 in this implementation
+        self.accept_states: set[function] = set()  # set of accept states must be specified in derived class
+        self.input_string: str = ""      # input string and
+        self.num_chars_read: int = 0     # current input character
+    
+    def run(self, input_string: str) -> bool:
+        """ The workhorse of the FSA shared by all the FSAs in project 1.
+        • record the input string
+        • initialize the start state
+        • while there are still characters to read in the input string ...
+        • transition between states
+        • return something useful if the final state is an accept state """
+        self.input_string = input_string
+        current_state: function = self.start_state
+        while self.num_chars_read < len(self.input_string):
+            current_state = current_state()
+        if current_state in self.accept_states:
+            return True # Output this if the FSA ended in an accept state
+        else: 
+            return False # Output this if the FSA ended in anything other than an accept state
+
+    def reset(self) -> None:
+        self.num_chars_read = 0
+        self.input_string = ""
+
+    def s0(self) -> NotImplemented:
+        """ Every FSA must have a start state, and we'll always name 
+        it s0. The function for the start state must be defined in the
+        derived class since it's not defined here. """
+        pass
+
+    def get_fsa_name(self) -> str: return self.fsa_name
+
+    def get_chars_read(self) -> int: return self.num_chars_read
+
+add_fsa.py:
+
+from .fsa import FSA
+from typing import Callable as function
+
+class AddFSA(FSA):
+    def __init__(self, name):
+        FSA.__init__(self, name)
+        self.start_state: function = self.s0
+        self.accept_states.add(self.s1)
+
+    def s0(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != '+': 
+            next_state = self.s_err
+        else:
+            next_state = self.s1
+        self.num_chars_read += 1
+        return next_state
+    
+    def s1(self) -> function:
+        if self.num_chars_read >= len(self.input_string):
+            return self.s_err
+        return self.s1
+    
+    def s_err(self) -> function:
+        return self.s_err
+block_comment_fsa.py:
+
+from .fsa import FSA
+from typing import Callable as function
+
+class BlockCommentFSA(FSA):
+    def __init__(self, name):
+        FSA.__init__(self, name)
+        self.start_state: function = self.s0
+        self.accept_states.add(self.s4)
+
+    def s0(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != '#': 
+            next_state = self.s_err
+            self.num_chars_read += 1
+            return next_state
+        else: 
+            next_state = self.s1
+            self.num_chars_read += 1
+            return next_state
+    
+    def s1(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != '|': 
+            next_state = self.s_err
+            self.num_chars_read += 1
+            return next_state
+        else: 
+            next_state = self.s2
+            self.num_chars_read += 1
+            return next_state
+    
+    def s2(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != '|':
+            next_state = self.s2
+            self.num_chars_read += 1
+            return next_state
+        else: 
+            next_state = self.s3
+            self.num_chars_read += 1
+            return next_state
+    
+    def s3(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != '#': 
+            next_state = self.s_err
+            self.num_chars_read += 1
+            return next_state
+        else:
+            next_state = self.s4
+            self.num_chars_read += 1
+            return next_state
+    
+    def s4(self) -> function:
+        if self.num_chars_read >= len(self.input_string):
+            return self.s_err
+        return self.s4
+    
+    def s_err(self) -> function:
+        return self.s_err
+
+colon_dash_fsa.py:
+
+from .fsa import FSA
+from typing import Callable as function
+
+class ColonDashFSA(FSA):
+    def __init__(self, name):
+        FSA.__init__(self, name)
+        self.start_state: function = self.s0
+        self.accept_states.add(self.s2)
+
+    def s0(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != ':': next_state = self.s_err
+        else: next_state = self.s1
+        self.num_chars_read += 1
+        return next_state
+    
+    def s1(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != '-': next_state = self.s_err
+        else: next_state = self.s2
+        self.num_chars_read += 1
+        return next_state
+    
+    def s2(self) -> function:
+        if self.num_chars_read >= len(self.input_string):
+            return self.s_err
+        return self.s2
+    
+    def s_err(self) -> function:
+        return self.s_err
+
+colon_fsa.py:
+
+from .fsa import FSA
+from typing import Callable as function
+
+class ColonFSA(FSA):
+    def __init__(self, name):
+        FSA.__init__(self, name)
+        self.start_state: function = self.s0
+        self.accept_states.add(self.s1)
+
+    def s0(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != ':': 
+            next_state = self.s_err
+        else:
+            next_state = self.s1
+        self.num_chars_read += 1
+        return next_state
+    
+    def s1(self) -> function:
+        if self.num_chars_read >= len(self.input_string):
+            return self.s_err
+        return self.s1
+    
+    def s_err(self) -> function:
+        return self.s_err
+
+comma_fsa.py:
+
+from .fsa import FSA
+from typing import Callable as function
+
+class CommaFSA(FSA):
+    def __init__(self, name):
+        FSA.__init__(self, name)
+        self.start_state: function = self.s0
+        self.accept_states.add(self.s1)
+
+    def s0(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != ',': 
+            next_state = self.s_err
+        else:
+            next_state = self.s1
+            self.num_chars_read += 1
+        return next_state
+    
+    def s1(self) -> function:
+        if self.num_chars_read >= len(self.input_string):
+            return self.s_err
+        return self.s1
+    
+    def s_err(self) -> function:
+        return self.s_err
+
+facts_fsa.py:
+
+from .fsa import FSA
+from typing import Callable as function
+
+class FactsFSA(FSA):
+    def __init__(self, name):
+        FSA.__init__(self, name)
+        self.start_state: function = self.s0
+        self.accept_states.add(self.s5)
+
+    def s0(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 'F': 
+            next_state = self.s_err
+        else:
+            next_state = self.s1
+        self.num_chars_read += 1
+        return next_state
+    
+    def s1(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 'a': 
+            next_state = self.s_err
+        else:
+            next_state = self.s2
+        self.num_chars_read += 1
+        return next_state
+    
+    def s2(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 'c': 
+            next_state = self.s_err
+        else:
+            next_state = self.s3
+        self.num_chars_read += 1
+        return next_state
+    
+    def s3(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 't': 
+            next_state = self.s_err
+        else:
+            next_state = self.s4
+        self.num_chars_read += 1
+        return next_state
+    
+    def s4(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 's': 
+            next_state = self.s_err
+        else:
+            next_state = self.s5
+        self.num_chars_read += 1
+        return next_state
+    
+    def s5(self) -> function:
+        if self.num_chars_read >= len(self.input_string):
+            return self.s_err
+        return self.s5
+    
+    def s_err(self) -> function:
+        return self.s_err
+
+id_fsa:
+
+from .fsa import FSA
+from typing import Callable as function
+
+class IDFSA(FSA):
+    def __init__(self, name):
+        FSA.__init__(self, name)
+        self.start_state: function = self.s0
+        self.accept_states.add(self.s1)
+
+    def s0(self) -> function:
+        if self.input_string[self.num_chars_read].isalpha() == True:
+            next_state: function = None
+            next_state = self.s1
+            self.num_chars_read += 1
+        else:
+            next_state: function = self.s_err
+        return next_state
+    
+    def s1(self) -> function:
+        next_state:function = self.s_err
+        #risky change here s1 is accept state
+        if self.input_string[self.num_chars_read].isalpha() == True or self.input_string[self.num_chars_read].isnumeric() == True:
+            next_state = self.s1
+            self.num_chars_read += 1
+        else:
+            next_state = self.s2
+            self.num_chars_read += 1
+        return next_state
+
+    def s2(self) -> function:
+        if self.num_chars_read >= len(self.input_string):
+            return self.s_err
+        return self.s2
+    
+    def s_err(self) -> function:
+        return self.s_err
+
+left_paren_FSA.py:
+
+from .fsa import FSA
+from typing import Callable as function
+
+class LeftParenFSA(FSA):
+    def __init__(self, name):
+        FSA.__init__(self, name)
+        self.start_state: function = self.s0
+        self.accept_states.add(self.s1)
+
+    def s0(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != '(':
+            next_state = self.s_err
+        else:
+            next_state = self.s1
+        self.num_chars_read += 1
+        return next_state
+    
+    def s1(self) -> function:
+        if self.num_chars_read >= len(self.input_string):
+            return self.s_err
+        return self.s1
+    
+    def s_err(self) -> function:
+        return self.s_err
+    
+line_comment_fsa.py:
+
+class LineCommentFSA(FSA):
+    def __init__(self, name):
+        FSA.__init__(self, name)
+        self.start_state: function = self.s0
+        self.accept_states.add(self.s2)
+
+    def s0(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != '#': 
+            next_state = self.s_err
+        else: next_state = self.s1
+        self.num_chars_read += 1
+        return next_state
+    
+    def s1(self) -> function:
+        next_state: function = None
+
+        if (self.input_string[self.num_chars_read] == EOFError) or (self.input_string[self.num_chars_read]) == "\n" :
+            next_state = self.s2
+        else: 
+            next_state = self.s1
+        self.num_chars_read += 1
+        return next_state
+    
+    def s2(self) -> function:
+        if self.num_chars_read >= len(self.input_string):
+            return self.s_err
+        return self.s1
+    
+    def s_err(self) -> function:
+        return self.s_err
+
+multiply_fsa.py:
+
+from .fsa import FSA
+from typing import Callable as function
+
+class MultiplyFSA(FSA):
+    def __init__(self, name):
+        FSA.__init__(self, name)
+        self.start_state: function = self.s0
+        self.accept_states.add(self.s1)
+
+    def s0(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != '*': 
+            next_state = self.s_err
+        else:
+            next_state = self.s1
+        self.num_chars_read += 1
+        return next_state
+    
+    def s1(self) -> function:
+        if self.num_chars_read >= len(self.input_string):
+            return self.s_err
+        return self.s1
+    
+    def s_err(self) -> function:
+        return self.s_err
+
+period_fsa.py:
+
+from .fsa import FSA
+from typing import Callable as function
+
+class PeriodFSA(FSA):
+    def __init__(self, name):
+        FSA.__init__(self, name)
+        self.start_state: function = self.s0
+        self.accept_states.add(self.s1)
+
+    def s0(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != '.': 
+            next_state = self.s_err
+        else:
+            next_state = self.s1
+        self.num_chars_read += 1
+        return next_state
+    
+    def s1(self) -> function:
+        if self.num_chars_read >= len(self.input_string):
+            return self.s_err
+        return self.s1
+    
+    def s_err(self) -> function:
+        return self.s_err
+
+q_mark_fsa.py:
+
+from .fsa import FSA
+from typing import Callable as function
+
+class QMarkFSA(FSA):
+    def __init__(self, name):
+        FSA.__init__(self, name)
+        self.start_state: function = self.s0
+        self.accept_states.add(self.s1)
+
+    def s0(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != '?': 
+            next_state = self.s_err
+        else:
+            next_state = self.s1
+        self.num_chars_read += 1
+        return next_state
+    
+    def s1(self) -> function:
+        if self.num_chars_read >= len(self.input_string):
+            return self.s_err
+        return self.s1
+    
+    def s_err(self) -> function:
+        return self.s_err
+
+queries_fsa.py:
+
+from .fsa import FSA
+from typing import Callable as function
+
+class QueriesFSA(FSA):
+    def __init__(self, name):
+        FSA.__init__(self, name)
+        self.start_state: function = self.s0
+        self.accept_states.add(self.s7)
+
+    def s0(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 'Q': 
+            next_state = self.s_err
+        else:
+            next_state = self.s1
+        self.num_chars_read += 1
+        return next_state
+    
+    def s1(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 'u': 
+            next_state = self.s_err
+        else:
+            next_state = self.s2
+        self.num_chars_read += 1
+        return next_state
+    
+    def s2(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 'e': 
+            next_state = self.s_err
+        else:
+            next_state = self.s3
+        self.num_chars_read += 1
+        return next_state
+    
+    def s3(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 'r': 
+            next_state = self.s_err
+        else:
+            next_state = self.s4
+        self.num_chars_read += 1
+        return next_state
+    
+    def s4(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 'i': 
+            next_state = self.s_err
+        else:
+            next_state = self.s5
+        self.num_chars_read += 1
+        return next_state
+    
+    def s5(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 'e': 
+            next_state = self.s_err
+        else:
+            next_state = self.s6
+        self.num_chars_read += 1
+        return next_state
+    
+    def s6(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 's': 
+            next_state = self.s_err
+        else:
+            next_state = self.s7
+        self.num_chars_read += 1
+        return next_state
+    
+    def s7(self) -> function:
+        if self.num_chars_read >= len(self.input_string):
+            return self.s_err
+        return self.s7
+    
+    def s_err(self) -> function:
+        return self.s_err
+
+right_paren_fsa:
+
+from .fsa import FSA
+from typing import Callable as function
+
+class RightParenFSA(FSA):
+    def __init__(self, name):
+        FSA.__init__(self, name)
+        self.start_state: function = self.s0
+        self.accept_states.add(self.s1)
+
+    def s0(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != ')': 
+            next_state = self.s_err
+        else:
+            next_state = self.s1
+        self.num_chars_read += 1
+        return next_state
+    
+    def s1(self) -> function:
+        if self.num_chars_read >= len(self.input_string):
+            return self.s_err
+        return self.s1
+    
+    def s_err(self) -> function:
+        return self.s_err
+
+rules_fsa.py:
+
+from .fsa import FSA
+from typing import Callable as function
+
+class RulesFSA(FSA):
+    def __init__(self, name):
+        FSA.__init__(self, name)
+        self.start_state: function = self.s0
+        self.accept_states.add(self.s5)
+        
+    def s0(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 'R': 
+            next_state = self.s_err
+        else:
+            next_state = self.s1
+        self.num_chars_read += 1
+        return next_state
+    
+    def s1(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 'u': 
+            next_state = self.s_err
+        else:
+            next_state = self.s2
+        self.num_chars_read += 1
+        return next_state
+    
+    def s2(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 'l': 
+            next_state = self.s_err
+        else:
+            next_state = self.s3
+        self.num_chars_read += 1
+        return next_state
+    
+    def s3(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 'e': 
+            next_state = self.s_err
+        else:
+            next_state = self.s4
+        self.num_chars_read += 1
+        return next_state
+    
+    def s4(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 's': 
+            next_state = self.s_err
+        else:
+            next_state = self.s5
+        self.num_chars_read += 1
+        return next_state
+    
+    def s5(self) -> function:
+        if self.num_chars_read >= len(self.input_string):
+            return self.s_err
+        return self.s5
+    
+    def s_err(self) -> function:
+        return self.s_err
+
+schemes_fsa.py:
+
+from .fsa import FSA
+from typing import Callable as function
+
+class SchemesFSA(FSA):
+    def __init__(self, name):
+        FSA.__init__(self, name)
+        self.start_state: function = self.s0
+        self.accept_states.add(self.s7)
+
+    def s0(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 'S': 
+            next_state = self.s_err
+        else:
+            next_state = self.s1
+        self.num_chars_read += 1
+        return next_state
+    
+    def s1(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 'c': 
+            next_state = self.s_err
+        else:
+            next_state = self.s2
+        self.num_chars_read += 1
+        return next_state
+    
+    def s2(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 'h': 
+            next_state = self.s_err
+        else:
+            next_state = self.s3
+        self.num_chars_read += 1
+        return next_state
+    
+    def s3(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 'e': 
+            next_state = self.s_err
+        else:
+            next_state = self.s4
+        self.num_chars_read += 1
+        return next_state
+    
+    def s4(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 'm': 
+            next_state = self.s_err
+        else:
+            next_state = self.s5
+        self.num_chars_read += 1
+        return next_state
+    
+    def s5(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 'e': 
+            next_state = self.s_err
+        else:
+            next_state = self.s6
+        self.num_chars_read += 1
+        return next_state
+    
+    def s6(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != 's': 
+            next_state = self.s_err
+        else:
+            next_state = self.s7
+        self.num_chars_read += 1
+        return next_state
+    
+    def s7(self) -> function:
+        if self.num_chars_read >= len(self.input_string):
+            return self.s_err
+        return self.s7
+    
+    def s_err(self) -> function:
+        return self.s_err
+
+string_fsa.py:
+
+from .fsa import FSA
+from typing import Callable as function
+
+class StringFSA(FSA):
+    def __init__(self, name):
+        FSA.__init__(self, name)
+        self.start_state: function = self.s0
+        self.accept_states.add(self.s3)
+        
+    def s0(self) -> function:
+        next_state: function = None
+        if self.input_string[self.num_chars_read] != '\'':
+            next_state = self.s_err
+        else:
+            next_state = self.s1
+        self.num_chars_read += 1
+        return next_state
+    
+    def s1(self) -> function:
+        if self.input_string[self.num_chars_read] == "\'":
+            next_state:function = self.s2
+            self.num_chars_read +=1
+            return next_state
+        else:
+            next_state: function = self.s1
+            self.num_chars_read += 1
+            return next_state
+    
+    def s2(self) -> function:
+        if self.num_chars_read >= len(self.input_string):
+            return self.s_err
+        next_state: function = None
+        if self.num_chars_read == len(self.input_string):
+            next_state = self.s_err
+            return next_state
+        elif self.input_string[self.num_chars_read] == "\'":
+            next_state = self.s1
+            self.num_chars_read += 1
+            return next_state
+        else:
+            next_state = self.s3
+
+
+    def s3(self) -> function:
+        if self.num_chars_read >= len(self.input_string):
+            return self.s_err
+        return self.s3
+    
+    def s_err(self) -> function:
+        return self.s_err
+
+token_1.py:
+
+class Token():
+    def __init__(self, token_type: str, value: str, line_num: int):
+        self.token_type = token_type
+        self.value = value
+        self.line = line_num
+
+    def getType(self):
+        return self.token_type
+    def getValue(self):
+        return self.value
+    def getLine(self):
+        return self.line
+
+    def to_string(self) -> str:
+        return "(" + self.token_type + ",\"" + self.value + "," + str(self.line) + ")"
